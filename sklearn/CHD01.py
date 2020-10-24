@@ -9,6 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import LogisticRegressionCV
+from sklearn.svm import SVC
 
 from sklearn.feature_selection import RFE
 import matplotlib.pyplot as plt
@@ -29,15 +30,15 @@ import time
 
 warnings.filterwarnings('ignore')
 
+"""
 
-def null_detect(df, axis_n):
-    """
-    空值查找
+    部分一为数据预处理，包括空值填充，数据平衡
+    version 0.1 初始版本 现版本 
+    
+"""
 
-    1为行
-    0为列
 
-    """
+def null_detect(df, axis_n):  # 空值查找,1为行,0为列
     df = df.isnull()
     df = df.sum(axis=axis_n)
     df = df.to_frame()
@@ -45,26 +46,17 @@ def null_detect(df, axis_n):
     return df
 
 
-def fillna_mean(df, col_name):
-    """
-    空值填充为均值
-    """
+def fillna_mean(df, col_name):  # 空值填充为均值
     df[col_name] = df[col_name].fillna(df[col_name].mean())
     return df
 
 
-def fillna_medians(df, col_name):
-    """
-    空值填充为中位数
-    """
+def fillna_medians(df, col_name):   #空值填充为中位数
     df[col_name] = df[col_name].fillna(df[col_name].median())
     return df
 
 
-def fillna_mode(df, col_name):
-    """
-    空值填充为众数
-    """
+def fillna_mode(df, col_name):  #空值填充为众数
     import scipy.stats as st
     df[col_name] = df[col_name].fillna(st.mode(df[col_name])[0][0])
     return df
@@ -96,8 +88,11 @@ print(y.value_counts())
 print("\nafter ROS the distribution is :")
 print(data_ros.iloc[:, -1].value_counts())
 
+
 """
-feature selection
+    feature selection
+    参数选择部分
+    version 0.1 初始版本 现版本
 """
 x_rs = data_ros.drop("Class", 1)  # independent variables
 y_rs = data_ros["Class"]  # dependent variable
@@ -127,25 +122,17 @@ print("Score with %d features: %f" % (nof, high_score))
 
 cols = list(x.columns)
 model = DecisionTreeClassifier()
-"""
-Initializing the RFE model with optimum number of features
-"""
-rfe = RFE(model, nof)
-"""
-Transformation
-"""
-x_rfe = rfe.fit_transform(x, y)
-"""
-fitting by the model
-"""
-model.fit(x_rfe, y)
+rfe = RFE(model, nof)   #Initializing the RFE model with optimum number of features
+x_rfe = rfe.fit_transform(x, y)     #Transformation
+model.fit(x_rfe, y)     #fitting by the model
 temp = pd.Series(rfe.support_, index=cols)
 selected_features_rfe = temp[temp == True].index
 selected_features_rfe = pd.DataFrame(selected_features_rfe, columns=['features'])
 
-
 """
-建模部分
+    建模部分
+    使用到的模型: KNN, Logistic Regression, Decision Tree, SVM, Random Forest
+    version 0.1 初始版本 现版本
 """
 data_ros_run = data_ros.drop(['male', 'currentSmoker', 'cigsPerDay', 'BPMeds', 'prevalentStroke', 'prevalentHyp',
                               'diabetes'], axis=1)
@@ -182,22 +169,18 @@ def model_fitting(model, modelname):
 # ]
 
 
-"""
-KNN部分测试
-"""
+# KNN部分测试
 # for i in range(2,8):
 #     model_fitting(KNeighborsClassifier(n_neighbors=i, weights='distance'), 'KNeighborsClassifier'+str(i))
 #     """
 #     效果不如uniform
 #     """
 
-for i in range(2,8):
-    model_fitting(KNeighborsClassifier(n_neighbors=i), 'KNeighborsClassifier'+str(i))
+for i in range(2, 8):
+    model_fitting(KNeighborsClassifier(n_neighbors=i), 'KNeighborsClassifier' + str(i))
 
-"""
-logistic regression部分测试
-"""
 
+# logistic regression部分测试
 solver = ['lbfgs', 'newton-cg', 'sag', 'saga']
 for i in solver:
     model_fitting(LogisticRegression(solver=i), 'LogisticRegression with ' + i)
@@ -205,18 +188,24 @@ for i in solver:
     model_fitting(LogisticRegressionCV(solver=i, cv=5), 'LogisticRegressionCV with ' + i)
 
 
-"""
-decision tree部分
-"""
-model_fit = model_fitting(DecisionTreeClassifier(), 'DecisionTreeClassifier')
-model_fit
+# decision tree部分
+DTC_max_features = ['auto', 'sqrt', 'log2', None]
+DTC_depth = [4, 5, 6, 7, 8, 9]
+for k in DTC_depth:
+    for i in DTC_max_features:
+        model_fit = model_fitting(DecisionTreeClassifier(max_features=i, max_depth=k),
+                                  'DecisionTreeClassifier ' + str(i) + ' depth ' + str(k))
+        model_fit
 # model_fit.get_depth()
 # model_fit.get_n_leaves()
 
 
+# SVM部分
+model_fitting(SVC(kernel='rbf'), 'SVM')
 
+
+# Random Forest 部分
 model_fitting(RandomForestClassifier(), 'RandomForestClassifier')
-
 
 # for a in model:
 #     model = a[0]
