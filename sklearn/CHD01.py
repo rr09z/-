@@ -51,18 +51,18 @@ def fillna_mean(df, col_name):  # 空值填充为均值
     return df
 
 
-def fillna_medians(df, col_name):   #空值填充为中位数
+def fillna_medians(df, col_name):  # 空值填充为中位数
     df[col_name] = df[col_name].fillna(df[col_name].median())
     return df
 
 
-def fillna_mode(df, col_name):  #空值填充为众数
+def fillna_mode(df, col_name):  # 空值填充为众数
     import scipy.stats as st
     df[col_name] = df[col_name].fillna(st.mode(df[col_name])[0][0])
     return df
 
 
-data = pd.read_csv('5650final/CHD.csv')
+data = pd.read_csv('CHD.csv')
 # data_ind = data.drop(['education'], axis=1)
 data_ind_nn = data.dropna(axis='rows')
 
@@ -88,11 +88,12 @@ print(y.value_counts())
 print("\nafter ROS the distribution is :")
 print(data_ros.iloc[:, -1].value_counts())
 
-
 """
     feature selection
     参数选择部分
-    version 0.1 初始版本 现版本
+    version 0.1 初始版本 
+    version 0.2 现版本
+        根据相关系数矩阵去除diaBP
 """
 x_rs = data_ros.drop("Class", 1)  # independent variables
 y_rs = data_ros["Class"]  # dependent variable
@@ -122,22 +123,41 @@ print("Score with %d features: %f" % (nof, high_score))
 
 cols = list(x.columns)
 model = DecisionTreeClassifier()
-rfe = RFE(model, nof)   #Initializing the RFE model with optimum number of features
-x_rfe = rfe.fit_transform(x, y)     #Transformation
-model.fit(x_rfe, y)     #fitting by the model
+rfe = RFE(model, nof)  # Initializing the RFE model with optimum number of features
+x_rfe = rfe.fit_transform(x, y)  # Transformation
+model.fit(x_rfe, y)  # fitting by the model
 temp = pd.Series(rfe.support_, index=cols)
 selected_features_rfe = temp[temp == True].index
 selected_features_rfe = pd.DataFrame(selected_features_rfe, columns=['features'])
 
+data_ros_run = data_ros.drop(['male', 'currentSmoker', 'cigsPerDay', 'BPMeds', 'prevalentStroke', 'prevalentHyp',
+                              'diabetes', 'index'], axis=1)
+x = data_ros_run.drop("Class", 1)
+y = data_ros_run["Class"]
+
+#corrlation图
+names = x.columns.values.tolist()
+del names[0]
+correlations = x.corr()
+correction = abs(correlations)
+fig = plt.figure()
+ax = fig.add_subplot()
+ax = sns.heatmap(correction, cmap=plt.cm.Greys, linewidths=0.05, vmax=1, vmin=0, annot=True,
+                 annot_kws={'size': 6, 'weight': 'bold'})
+plt.xticks(np.arange(7)+0.5,names)
+plt.yticks(np.arange(7)+0.5,names)
+ax.set_title('Characteristic correlation')
+plt.savefig('cluster.tif',dpi=300)
+
+data_ros_run = data_ros_run.drop(['diaBP'], axis=1)
+x = data_ros_run.drop("Class", 1)
+y = data_ros_run["Class"]
 """
     建模部分
     使用到的模型: KNN, Logistic Regression, Decision Tree, SVM, Random Forest
     version 0.1 初始版本 现版本
 """
-data_ros_run = data_ros.drop(['male', 'currentSmoker', 'cigsPerDay', 'BPMeds', 'prevalentStroke', 'prevalentHyp',
-                              'diabetes'], axis=1)
-x = data_ros_run.drop("Class", 1)
-y = data_ros_run["Class"]
+
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=10)
 data = pd.concat([x_train, y_train], axis=1)
 
@@ -176,9 +196,8 @@ def model_fitting(model, modelname):
 #     效果不如uniform
 #     """
 
-for i in range(2, 8):
+for i in range(5, 11):
     model_fitting(KNeighborsClassifier(n_neighbors=i), 'KNeighborsClassifier' + str(i))
-
 
 # logistic regression部分测试
 solver = ['lbfgs', 'newton-cg', 'sag', 'saga']
@@ -187,10 +206,9 @@ for i in solver:
 for i in solver:
     model_fitting(LogisticRegressionCV(solver=i, cv=5), 'LogisticRegressionCV with ' + i)
 
-
 # decision tree部分
 DTC_max_features = ['auto', 'sqrt', 'log2', None]
-DTC_depth = [4, 5, 6, 7, 8, 9]
+DTC_depth = [4, 5, 6, 7, 8, 9, 10]
 for k in DTC_depth:
     for i in DTC_max_features:
         model_fit = model_fitting(DecisionTreeClassifier(max_features=i, max_depth=k),
@@ -199,10 +217,8 @@ for k in DTC_depth:
 # model_fit.get_depth()
 # model_fit.get_n_leaves()
 
-
 # SVM部分
 model_fitting(SVC(kernel='rbf'), 'SVM')
-
 
 # Random Forest 部分
 model_fitting(RandomForestClassifier(), 'RandomForestClassifier')
