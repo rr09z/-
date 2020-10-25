@@ -27,7 +27,7 @@ for i in epochs_test:
 time = [1, 2, 3, 4, 5]
 result2 = []
 for i in time:
-    if i < 5:
+    if i <= 5:
         model.fit(X, y, epochs=150, batch_size=10)
         _, accuracy = model.evaluate(X, y)
         result2.append(accuracy)
